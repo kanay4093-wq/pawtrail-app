@@ -1,0 +1,16 @@
+{
+  "name": "PAWTRAIL ｜ 愛犬とおでかけ地図",
+  "short_name": "PAWTRAIL",
+  "description": "関東・甲信・東北・東海の犬と遊べる施設、犬と入れる施設、ドッグラン、犬と入れる飲食店、動物病院をまとめた愛犬おでかけガイド",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#16302A",
+  "theme_color": "#16302A",
+  "lang": "ja",
+  "icons": [
+    { "src": "icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any maskable" },
+    { "src": "icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any maskable" }
+  ]
+}
