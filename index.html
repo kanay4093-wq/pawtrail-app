@@ -1,0 +1,672 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=1">
+<title>PAWTRAIL｜愛犬とおでかけ地図</title>
+<meta name="description" content="関東・甲信・東北・東海の犬と遊べる施設、犬と入れる施設、ドッグラン、犬と入れる飲食店、動物病院をまとめた愛犬おでかけガイド">
+<meta name="theme-color" content="#16302A">
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="icon-192.png">
+<link rel="icon" href="icon-192.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Zen+Maru+Gothic:wght@500;700;900&family=Noto+Sans+JP:wght@400;500;700&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<style>
+  :root{
+    --pine:#16302A;
+    --pine-deep:#0E211C;
+    --sage:#4C7A6B;
+    --sage-soft:#DCE7DE;
+    --gold:#E3B23C;
+    --gold-deep:#C4901F;
+    --paper:#FAF8F2;
+    --paper-card:#FFFFFF;
+    --ink:#1E2620;
+    --ink-soft:#5B675F;
+    --line:#E2E0D4;
+    --outdoor:#5E8F4A;
+    --outdoor-bg:#EAF3E4;
+    --indoor:#3B6FA0;
+    --indoor-bg:#E7EFF6;
+    --danger:#B4472F;
+    --radius:16px;
+    --shadow: 0 2px 10px rgba(14,33,28,0.08), 0 8px 24px rgba(14,33,28,0.06);
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;height:100%;}
+  body{
+    font-family:"Noto Sans JP",sans-serif;
+    background:var(--paper);
+    color:var(--ink);
+    -webkit-font-smoothing:antialiased;
+    overscroll-behavior-y:none;
+  }
+  .app{
+    max-width:560px;
+    margin:0 auto;
+    min-height:100vh;
+    display:flex;
+    flex-direction:column;
+    background:var(--paper);
+    position:relative;
+  }
+
+  /* ---------- Header ---------- */
+  header.top{
+    background:linear-gradient(160deg,var(--pine) 0%, var(--pine-deep) 100%);
+    color:#fff;
+    padding:calc(env(safe-area-inset-top,0px) + 18px) 20px 16px;
+    position:sticky;
+    top:0;
+    z-index:30;
+    box-shadow:0 4px 16px rgba(0,0,0,0.15);
+  }
+  .brand{
+    display:flex;
+    align-items:center;
+    gap:10px;
+  }
+  .brand .paw{
+    width:34px;height:34px;flex-shrink:0;
+  }
+  .brand h1{
+    font-family:"Zen Maru Gothic",sans-serif;
+    font-weight:900;
+    font-size:22px;
+    letter-spacing:0.5px;
+    margin:0;
+    line-height:1;
+  }
+  .brand .sub{
+    font-size:11px;
+    color:var(--gold);
+    font-weight:500;
+    letter-spacing:1.5px;
+    margin-top:2px;
+  }
+  .region-row{
+    display:flex;
+    gap:8px;
+    margin-top:16px;
+    overflow-x:auto;
+    scrollbar-width:none;
+    padding-bottom:2px;
+  }
+  .region-row::-webkit-scrollbar{display:none;}
+  .region-chip{
+    flex:0 0 auto;
+    padding:9px 16px;
+    border-radius:999px;
+    background:rgba(255,255,255,0.08);
+    border:1px solid rgba(255,255,255,0.18);
+    color:rgba(255,255,255,0.75);
+    font-size:14px;
+    font-weight:700;
+    font-family:"Zen Maru Gothic",sans-serif;
+    cursor:pointer;
+    white-space:nowrap;
+    transition:all .15s ease;
+  }
+  .region-chip.active{
+    background:var(--gold);
+    border-color:var(--gold);
+    color:var(--pine-deep);
+  }
+
+  /* ---------- Category tabs ---------- */
+  .cat-tabs{
+    display:grid;
+    grid-template-columns:repeat(5,1fr);
+    gap:6px;
+    padding:14px 14px 0;
+    position:sticky;
+    top:calc(env(safe-area-inset-top,0px) + 128px);
+    background:var(--paper);
+    z-index:25;
+    padding-bottom:10px;
+    border-bottom:1px solid var(--line);
+  }
+  .cat-tab{
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    gap:4px;
+    padding:8px 2px 10px;
+    border-radius:12px;
+    cursor:pointer;
+    color:var(--ink-soft);
+    border:1px solid transparent;
+  }
+  .cat-tab .ico{font-size:19px;line-height:1;}
+  .cat-tab .lbl{font-size:10.5px;font-weight:700;text-align:center;line-height:1.25;}
+  .cat-tab.active{
+    background:var(--sage-soft);
+    color:var(--pine);
+    border-color:var(--sage);
+  }
+
+  /* ---------- View toggle ---------- */
+  .toolbar{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    padding:12px 16px 4px;
+  }
+  .count-label{
+    font-family:"JetBrains Mono",monospace;
+    font-size:12px;
+    color:var(--ink-soft);
+  }
+  .view-toggle{
+    display:flex;
+    background:var(--sage-soft);
+    border-radius:10px;
+    padding:3px;
+    gap:2px;
+  }
+  .view-toggle button{
+    border:none;
+    background:transparent;
+    padding:6px 12px;
+    border-radius:8px;
+    font-size:12.5px;
+    font-weight:700;
+    font-family:"Zen Maru Gothic",sans-serif;
+    color:var(--ink-soft);
+    cursor:pointer;
+  }
+  .view-toggle button.active{
+    background:var(--pine);
+    color:#fff;
+  }
+
+  /* ---------- Content ---------- */
+  main{
+    flex:1;
+    padding:8px 16px 100px;
+  }
+  .region-note{
+    font-size:12px;
+    color:var(--ink-soft);
+    background:var(--sage-soft);
+    border-radius:10px;
+    padding:10px 12px;
+    margin:8px 0 14px;
+    line-height:1.6;
+  }
+  .card{
+    background:var(--paper-card);
+    border:1px solid var(--line);
+    border-radius:var(--radius);
+    padding:14px 16px 14px;
+    margin-bottom:12px;
+    box-shadow:var(--shadow);
+    position:relative;
+    overflow:hidden;
+  }
+  .card.outdoor{border-left:5px solid var(--outdoor);}
+  .card.indoor{border-left:5px solid var(--indoor);}
+  .card-top{
+    display:flex;
+    justify-content:space-between;
+    align-items:flex-start;
+    gap:10px;
+  }
+  .card h3{
+    font-family:"Zen Maru Gothic",sans-serif;
+    font-size:16px;
+    margin:0 0 4px;
+    line-height:1.4;
+    color:var(--pine-deep);
+  }
+  .badge{
+    flex-shrink:0;
+    font-size:11px;
+    font-weight:700;
+    padding:4px 9px;
+    border-radius:999px;
+    white-space:nowrap;
+  }
+  .badge.outdoor{background:var(--outdoor-bg);color:var(--outdoor);}
+  .badge.indoor{background:var(--indoor-bg);color:var(--indoor);}
+  .addr{
+    font-family:"JetBrains Mono",monospace;
+    font-size:11.5px;
+    color:var(--ink-soft);
+    margin:2px 0 8px;
+  }
+  .note{
+    font-size:13px;
+    line-height:1.7;
+    color:var(--ink);
+    margin:0 0 12px;
+  }
+  .tel{
+    font-family:"JetBrains Mono",monospace;
+    font-size:12px;
+    color:var(--sage);
+    margin:-6px 0 10px;
+  }
+  .card-actions{
+    display:flex;
+    gap:8px;
+  }
+  .card-actions a{
+    flex:1;
+    text-align:center;
+    text-decoration:none;
+    font-size:12.5px;
+    font-weight:700;
+    font-family:"Zen Maru Gothic",sans-serif;
+    padding:9px 6px;
+    border-radius:10px;
+    border:1px solid var(--line);
+    color:var(--pine);
+    background:var(--paper);
+  }
+  .card-actions a.route{
+    background:var(--pine);
+    border-color:var(--pine);
+    color:#fff;
+  }
+
+  .vet-search-card{
+    background:var(--pine);
+    color:#fff;
+    border-radius:var(--radius);
+    padding:16px;
+    margin-bottom:14px;
+  }
+  .vet-search-card h4{
+    font-family:"Zen Maru Gothic",sans-serif;
+    margin:0 0 6px;
+    font-size:15px;
+  }
+  .vet-search-card p{
+    font-size:12.5px;
+    line-height:1.7;
+    margin:0 0 12px;
+    color:rgba(255,255,255,0.85);
+  }
+  .vet-search-card a{
+    display:inline-block;
+    background:var(--gold);
+    color:var(--pine-deep);
+    text-decoration:none;
+    font-weight:700;
+    font-size:13px;
+    padding:9px 16px;
+    border-radius:10px;
+    font-family:"Zen Maru Gothic",sans-serif;
+  }
+
+  /* ---------- Map ---------- */
+  #map{
+    height:calc(100vh - 320px);
+    min-height:360px;
+    border-radius:var(--radius);
+    overflow:hidden;
+    border:1px solid var(--line);
+    margin-top:6px;
+  }
+  .leaflet-popup-content{font-family:"Noto Sans JP",sans-serif; font-size:12.5px;}
+  .leaflet-popup-content b{font-family:"Zen Maru Gothic",sans-serif; font-size:13.5px;}
+  .legend{
+    display:flex;
+    gap:14px;
+    margin:10px 0 4px;
+    font-size:11.5px;
+    color:var(--ink-soft);
+    align-items:center;
+  }
+  .legend span{display:flex;align-items:center;gap:5px;}
+  .dot{width:10px;height:10px;border-radius:50%;display:inline-block;}
+  .dot.outdoor{background:var(--outdoor);}
+  .dot.indoor{background:var(--indoor);}
+  .dot.other{background:var(--gold-deep);}
+
+  footer{
+    text-align:center;
+    font-size:11px;
+    color:var(--ink-soft);
+    padding:18px 20px 30px;
+  }
+
+  @media (max-width:360px){
+    .cat-tab .lbl{font-size:9.5px;}
+  }
+</style>
+</head>
+<body>
+<div class="app">
+
+  <header class="top">
+    <div class="brand">
+      <svg class="paw" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+        <circle cx="50" cy="50" r="48" fill="#0E211C"/>
+        <ellipse cx="50" cy="60" rx="18" ry="14" fill="#E3B23C"/>
+        <ellipse cx="28" cy="38" rx="9" ry="9" fill="#E3B23C"/>
+        <ellipse cx="41" cy="26" rx="9" ry="9" fill="#E3B23C"/>
+        <ellipse cx="59" cy="26" rx="9" ry="9" fill="#E3B23C"/>
+        <ellipse cx="72" cy="38" rx="9" ry="9" fill="#E3B23C"/>
+      </svg>
+      <div>
+        <h1>PAWTRAIL</h1>
+        <div class="sub">愛犬とおでかけ地図</div>
+      </div>
+    </div>
+    <div class="region-row" id="regionRow"></div>
+  </header>
+
+  <nav class="cat-tabs" id="catTabs"></nav>
+
+  <div class="toolbar">
+    <div class="count-label" id="countLabel">0件</div>
+    <div class="view-toggle">
+      <button id="btnList" class="active">リスト</button>
+      <button id="btnMap">地図</button>
+    </div>
+  </div>
+
+  <main>
+    <div class="region-note" id="regionNote"></div>
+    <div id="listView"></div>
+    <div id="mapView" style="display:none;">
+      <div class="legend">
+        <span><i class="dot outdoor"></i>屋外ドッグラン</span>
+        <span><i class="dot indoor"></i>屋内ドッグラン</span>
+        <span><i class="dot other"></i>その他施設</span>
+      </div>
+      <div id="map"></div>
+    </div>
+  </main>
+
+  <footer>
+    施設情報は変更される場合があります。お出かけ前に必ず公式サイト・お電話でご確認ください。<br>
+    ルート検索は Google マップを利用します。
+  </footer>
+</div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+/* =========================================================
+   DATA
+   ========================================================= */
+const DATA = {
+  kanto: {
+    label: "関東",
+    icon: "🗼",
+    center: [35.75, 139.55],
+    zoom: 8,
+    note: "東京・神奈川・埼玉・千葉・茨城・栃木・群馬エリア。都市部の室内ドッグランからグランピングまで選択肢が豊富です。",
+    play: [
+      {name:"メッツァビレッジ／ムーミンバレーパーク", addr:"埼玉県飯能市宮沢327-6", note:"天然芝ドッグラン(500円/1時間)、湖畔散歩、ペットカートで一部屋内施設も利用可。", lat:35.860,lng:139.315, tel:"", url:"https://metsa-hanno.com/"},
+      {name:"わんダフルネイチャーヴィレッジ", addr:"東京都あきる野市(東京サマーランド隣接)", note:"都内最大級ドッグラン(全犬種/中大型/小型/屋根付き)、ドッグプール、BBQ、オートキャンプ。", lat:35.716,lng:139.209},
+      {name:"りんどう湖ファミリー牧場", addr:"栃木県那須町", note:"犬と一緒に乗れるアトラクションが充実。ドッグラン・ペットカート貸出あり。", lat:37.049,lng:140.039},
+      {name:"キラナガーデン豊洲", addr:"東京都江東区豊洲", note:"2022年オープン。都心でリゾート気分を味わえる大型犬OKのレジャー施設。", lat:35.655,lng:139.797},
+    ],
+    allowed: [
+      {name:"富岡製糸場", addr:"群馬県富岡市", note:"2026年最新ルールで屋内見学が可能に。同伴条件を公式サイトで要確認。", lat:36.256,lng:138.891},
+      {name:"HOT DOG TOWN Ariake", addr:"東京都江東区有明", note:"ショッピング・シャンプー・お食事・室内ドッグランが揃う複合施設。", lat:35.633,lng:139.793},
+      {name:"東京ドームシティ", addr:"東京都文京区後楽", note:"オイスターバーなどテラス・店内ともに犬同伴OKな飲食店が複数。駐車場利用も可。", lat:35.7056,lng:139.7519},
+    ],
+    dogrun: [
+      {name:"メッツァビレッジ ドッグラン", addr:"埼玉県飯能市宮沢327-6", type:"outdoor", note:"天然芝、ノーリードで遊べる。500円/1時間(〜2頭)。", lat:35.860,lng:139.315},
+      {name:"りんどう湖ファミリー牧場 ドッグラン", addr:"栃木県那須町", type:"outdoor", note:"那須高原の広々とした敷地内ドッグラン。", lat:37.049,lng:140.039},
+      {name:"HOT DOG TOWN Ariake 室内ドッグラン", addr:"東京都江東区有明", type:"indoor", note:"雨の日でも遊べる室内ドッグラン併設。", lat:35.633,lng:139.793},
+      {name:"わんダフルネイチャーヴィレッジ 屋根付きエリア", addr:"東京都あきる野市", type:"indoor", note:"屋根付きエリアがあり天候を気にせず利用可能。", lat:35.716,lng:139.209},
+    ],
+    restaurant: [
+      {name:"eatlet all day kitchen", addr:"東京都品川区東品川", note:"店内・テラス共に同伴OK。ベーグルサンドや和牛ビーフシチューが人気。", lat:35.612,lng:139.747},
+      {name:"AU GAMIN DE TOKIO table", addr:"東京都渋谷区恵比寿3-28-3", note:"1階店内席のみ同伴OK。予約時に犬連れである旨を要申告。TEL 03-3444-4991", tel:"03-3444-4991", lat:35.646,lng:139.710},
+      {name:"筑紫樓 恵比寿店", addr:"東京都渋谷区恵比寿", note:"食べログ百名店選出のふかひれ料理店。テラス席のみ同伴可(日除けなし)。", lat:35.646,lng:139.710},
+      {name:"DEAN & DELUCA 湘南ヴィレッジ", addr:"神奈川県茅ヶ崎市", note:"開放的なテラス席で犬と一緒に食事可能。朝7:30オープンでモーニングにも。", lat:35.336,lng:139.406},
+    ],
+    vet: [
+      {name:"ペテモ動物病院 亀戸(旧ひがし東京夜間救急動物医療センター)", addr:"東京都江東区亀戸", note:"24時間体制で夜間救急に対応。", lat:35.702,lng:139.826},
+      {name:"港区動物救急医療センター 芝アニマルクリニック", addr:"東京都港区", note:"24時間診療対応。", lat:35.655,lng:139.748},
+      {name:"埼大通りどうぶつ病院", addr:"埼玉県さいたま市周辺", note:"夜間・深夜診療対応。", lat:35.861,lng:139.646},
+    ],
+  },
+  koshin: {
+    label: "甲信",
+    icon: "⛰️",
+    center: [36.4, 138.2],
+    zoom: 8,
+    note: "山梨・長野エリア。標高の高い高原リゾートが多く、夏でも涼しく過ごせるスポットが充実しています。",
+    play: [
+      {name:"白馬岩岳マウンテンリゾート", addr:"長野県白馬村", note:"犬と一緒にゴンドラに乗車可能。山頂エリアの絶景と広いドッグランが魅力。", lat:36.699,lng:137.862},
+      {name:"Hakuba47マウンテンスポーツパーク", addr:"長野県白馬村", note:"四季折々のアクティビティ。犬と一緒にゴンドラ乗車、ドッグラン完備。", lat:36.678,lng:137.844},
+      {name:"鳥居平やまびこ公園", addr:"長野県岡谷市", note:"標高約950〜1,020mの高台にあり諏訪湖・八ヶ岳を一望。無料ドッグラン(小型犬専用/小〜大型犬エリア)あり。", lat:36.062,lng:138.052},
+    ],
+    allowed: [
+      {name:"軽井沢プリンスショッピングプラザ", addr:"長野県軽井沢町", note:"広大なアウトレットモール。犬同伴可能エリアあり(店舗ごとに要確認)。", lat:36.348,lng:138.634},
+      {name:"ハルニレテラス", addr:"長野県軽井沢町", note:"星野リゾートエリアの商業施設。犬同伴可のショップ・カフェが点在。", lat:36.348,lng:138.601},
+      {name:"善光寺", addr:"長野県長野市", note:"境内の散策は犬同伴可(リード必須)。本堂内部は要確認。", lat:36.661,lng:138.187},
+    ],
+    dogrun: [
+      {name:"鳥居平やまびこ公園 ドッグラン", addr:"長野県岡谷市", type:"outdoor", note:"諏訪湖を見下ろす高台の無料ドッグラン。小型犬専用/混合エリアあり。", lat:36.062,lng:138.052},
+      {name:"ドッグラン長野プライベートパーク", addr:"長野県長野市川中島町", type:"outdoor", note:"365日24時間利用可・Web予約制。天然芝2ゾーン、全面貸切も可能。", lat:36.588,lng:138.194},
+    ],
+    restaurant: [
+      {name:"ハルニレテラス内カフェ", addr:"長野県軽井沢町", note:"テラス席で犬と一緒に食事可能な店舗あり。", lat:36.348,lng:138.601},
+      {name:"白樺倶楽部", addr:"長野県茅野市(蓼科高原)", note:"標高1500mのペット連れ優先プチホテル。手作り洋風コースや天然温泉の貸切風呂も。", lat:35.972,lng:138.264},
+    ],
+    vet: [],
+  },
+  tohoku: {
+    label: "東北",
+    icon: "🌲",
+    center: [38.5, 140.7],
+    zoom: 7,
+    note: "青森・岩手・宮城・秋田・山形・福島の6県。宮城エリアを中心に、東北最大級の複合施設や自然を活かしたドッグランがあります。",
+    play: [
+      {name:"ガモウパーク", addr:"宮城県", note:"東北最大級の全天候型ドッグラン・プール・トリミングサロンを備えた複合施設。会員制だがビジター利用も可。", lat:38.098,lng:140.858},
+      {name:"里山ドッグランサム", addr:"宮城県黒川郡大和町", note:"山間の自然地形を活かした5フィールド構成。ノーリードのドッグウォークも併設。", lat:38.421,lng:140.912},
+      {name:"Snow Peak 陸前高田 Campfield", addr:"岩手県陸前高田市", note:"広田湾を見下ろす高台のキャンプ場。柵で囲まれたドッグフリーサイトあり。", lat:39.021,lng:141.638},
+    ],
+    allowed: [
+      {name:"松島(五大堂周辺)", addr:"宮城県松島町", note:"日本三景のひとつ。橋や湾の景色を楽しみながらリードで散策可能。", lat:38.368,lng:141.069},
+      {name:"鳴子峡", addr:"宮城県大崎市", note:"V字谷の紅葉名所。展望台・遊歩道が整備されている。", lat:38.744,lng:140.719},
+      {name:"長者原サービスエリア", addr:"宮城県大崎市(東北自動車道)", note:"上下線ともに300m2以上のドッグラン併設。休憩スペースも充実。", lat:38.736,lng:140.881},
+    ],
+    dogrun: [
+      {name:"里山ドッグランサム", addr:"宮城県黒川郡大和町", type:"outdoor", note:"自然の地形を活かした5フィールド。狩猟本能を満たせる設計。", lat:38.421,lng:140.912},
+      {name:"長者原SA ドッグラン", addr:"宮城県大崎市", type:"outdoor", note:"小型犬専用エリアとフリーエリアに分かれた天然芝ドッグラン。", lat:38.736,lng:140.881},
+      {name:"ガモウパーク 全天候型ドッグラン", addr:"宮城県", type:"indoor", note:"東北最大級。犬種DAYを設定、夏はプールも開放。", lat:38.098,lng:140.858},
+    ],
+    restaurant: [
+      {name:"ガモウパーク内ドッグカフェ", addr:"宮城県", note:"セパレートされた犬OKエリア、屋内外テラス席あり。人用・犬用メニューともに充実。", lat:38.098,lng:140.858},
+    ],
+    vet: [],
+  },
+  tokai: {
+    label: "東海",
+    icon: "🌊",
+    center: [35.2, 137.0],
+    zoom: 8,
+    note: "愛知・岐阜・静岡・三重エリア。道の駅併設ドッグランや海沿いの人工ビーチなど多彩なスポットがあります。",
+    play: [
+      {name:"HAMA&WAN", addr:"静岡県浜松市(佐鳴湖畔)", note:"静岡県内最大級、約6000m2のドッグラン。小型/小中型/大型/全犬種エリアに分かれ、アジリティやプールも完備。", lat:34.735,lng:137.686},
+      {name:"りんくうビーチ", addr:"愛知県常滑市", note:"東海地区最大級の人工海浜(約630m)。SEA AND SKY TERRACEにドッグラン併設。", lat:34.858,lng:136.805},
+      {name:"位山道の駅(位山スノーパーク跡地)", addr:"岐阜県高山市周辺", note:"4〜11月のグリーンシーズンのみ無料ドッグランとして開放。小型中型/大型の2エリア制。", lat:36.086,lng:137.256},
+    ],
+    allowed: [
+      {name:"長良川サービスエリア", addr:"岐阜県関市(東海北陸自動車道)", note:"飛騨高山・白川郷方面へのSA。犬の水飲み場やベンチが複数設置。", lat:35.516,lng:136.878},
+      {name:"りんくうビーチ", addr:"愛知県常滑市", note:"砂浜からセントレアの離発着機を間近に。散策・釣りも楽しめる。", lat:34.858,lng:136.805},
+    ],
+    dogrun: [
+      {name:"岐阜市畜産センター公園 ドッグラン", addr:"岐阜県岐阜市椿洞776-4", type:"outdoor", note:"約1,936m2(フリーゾーン約801m2、中小型犬用約1,135m2)。無料・水曜定休。", lat:35.457,lng:136.753},
+      {name:"長良川SA ドッグラン", addr:"岐阜県関市", type:"outdoor", note:"緑地に水飲み場・ベンチを併設した無料ドッグラン。", lat:35.516,lng:136.878},
+      {name:"TOWATERA", addr:"愛知県", type:"indoor", note:"トリミングサロン・カフェ併設。屋外(大型/小型)+2023年新設の室内ドッグラン(犬種混合)。", lat:35.181,lng:136.906},
+      {name:"DOGPARKカフェオーレ", addr:"静岡県(東海エリア)", type:"indoor", note:"冷暖房完備60坪の室内ドッグラン。ウッドデッキ併設カフェで軽食も。", lat:34.702,lng:137.734},
+    ],
+    restaurant: [
+      {name:"SEA AND SKY TERRACE", addr:"愛知県常滑市(りんくうビーチ)", note:"テラス席からビーチを一望しながら犬と食事可能。ドッグラン隣接。", lat:34.858,lng:136.805},
+      {name:"DOGPARKカフェオーレ", addr:"静岡県(東海エリア)", note:"室内ドッグランに併設されたウッドデッキで軽食・ドリンク提供。", lat:34.702,lng:137.734},
+    ],
+    vet: [],
+  },
+};
+
+const CATS = [
+  {key:"play", label:"遊べる施設", icon:"🐕"},
+  {key:"allowed", label:"入れる施設", icon:"🏛️"},
+  {key:"dogrun", label:"ドッグラン", icon:"🟢"},
+  {key:"restaurant", label:"飲食店", icon:"🍽️"},
+  {key:"vet", label:"動物病院", icon:"🏥"},
+];
+
+let state = { region:"kanto", cat:"play", view:"list" };
+let map, markersLayer;
+
+/* ---------- render tabs ---------- */
+function renderRegionRow(){
+  const row = document.getElementById("regionRow");
+  row.innerHTML = "";
+  Object.keys(DATA).forEach(key=>{
+    const chip = document.createElement("div");
+    chip.className = "region-chip" + (state.region===key ? " active":"");
+    chip.textContent = DATA[key].icon + " " + DATA[key].label;
+    chip.onclick = ()=>{ state.region=key; render(); };
+    row.appendChild(chip);
+  });
+}
+
+function renderCatTabs(){
+  const row = document.getElementById("catTabs");
+  row.innerHTML = "";
+  CATS.forEach(c=>{
+    const el = document.createElement("div");
+    el.className = "cat-tab" + (state.cat===c.key ? " active":"");
+    el.innerHTML = `<div class="ico">${c.icon}</div><div class="lbl">${c.label}</div>`;
+    el.onclick = ()=>{ state.cat=c.key; render(); };
+    row.appendChild(el);
+  });
+}
+
+function mapsRouteUrl(item){
+  const q = encodeURIComponent(item.name + " " + item.addr);
+  return `https://www.google.com/maps/dir/?api=1&destination=${q}&travelmode=driving`;
+}
+function mapsViewUrl(item){
+  const q = encodeURIComponent(item.name + " " + item.addr);
+  return `https://www.google.com/maps/search/?api=1&query=${q}`;
+}
+
+function renderList(){
+  const region = DATA[state.region];
+  const items = region[state.cat] || [];
+  const listEl = document.getElementById("listView");
+  document.getElementById("regionNote").textContent = region.note;
+  document.getElementById("countLabel").textContent = items.length + "件";
+  listEl.innerHTML = "";
+
+  if(state.cat === "vet"){
+    const card = document.createElement("div");
+    card.className = "vet-search-card";
+    card.innerHTML = `<h4>🏥 現在地周辺の動物病院を探す</h4>
+      <p>${region.label}エリアの夜間救急・動物病院は流動的なため、下記から現在地・訪問先周辺の最新情報をGoogleマップで検索できます。受診前は必ず事前にお電話でご確認ください。</p>
+      <a href="https://www.google.com/maps/search/?api=1&query=${encodeURIComponent('動物病院 ' + region.label)}" target="_blank" rel="noopener">周辺の動物病院を検索 →</a>`;
+    listEl.appendChild(card);
+  }
+
+  if(items.length === 0 && state.cat !== "vet"){
+    listEl.innerHTML += `<div class="region-note">現在このエリア・カテゴリの厳選施設情報を収集中です。地図タブから周辺検索、または上部の他エリアもご覧ください。</div>`;
+    return;
+  }
+
+  items.forEach(item=>{
+    const card = document.createElement("div");
+    card.className = "card" + (item.type ? " "+item.type : "");
+    let badge = "";
+    if(item.type === "outdoor") badge = `<span class="badge outdoor">屋外</span>`;
+    if(item.type === "indoor") badge = `<span class="badge indoor">屋内</span>`;
+    card.innerHTML = `
+      <div class="card-top">
+        <h3>${item.name}</h3>
+        ${badge}
+      </div>
+      <div class="addr">📍 ${item.addr}</div>
+      ${item.tel ? `<div class="tel">☎ ${item.tel}</div>` : ""}
+      <p class="note">${item.note || ""}</p>
+      <div class="card-actions">
+        <a href="${mapsViewUrl(item)}" target="_blank" rel="noopener">地図で見る</a>
+        <a class="route" href="${mapsRouteUrl(item)}" target="_blank" rel="noopener">ルート検索</a>
+      </div>
+    `;
+    listEl.appendChild(card);
+  });
+}
+
+function ensureMap(){
+  if(map) return;
+  map = L.map("map", {zoomControl:true});
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    maxZoom: 18,
+    attribution: '&copy; OpenStreetMap contributors'
+  }).addTo(map);
+  markersLayer = L.layerGroup().addTo(map);
+}
+
+function renderMap(){
+  ensureMap();
+  const region = DATA[state.region];
+  const items = region[state.cat] || [];
+  markersLayer.clearLayers();
+  map.setView(region.center, region.zoom);
+
+  items.forEach(item=>{
+    let color = "#C4901F";
+    if(item.type==="outdoor") color="#5E8F4A";
+    if(item.type==="indoor") color="#3B6FA0";
+    const marker = L.circleMarker([item.lat, item.lng], {
+      radius:9, color:"#fff", weight:2, fillColor:color, fillOpacity:0.95
+    }).addTo(markersLayer);
+    marker.bindPopup(`<b>${item.name}</b><br>${item.addr}<br><br>
+      <a href="${mapsRouteUrl(item)}" target="_blank" rel="noopener">ルート検索 →</a>`);
+  });
+
+  setTimeout(()=>{ map.invalidateSize(); }, 150);
+}
+
+function render(){
+  renderRegionRow();
+  renderCatTabs();
+  if(state.view === "list"){
+    document.getElementById("listView").style.display = "block";
+    document.getElementById("mapView").style.display = "none";
+    renderList();
+  } else {
+    document.getElementById("listView").style.display = "none";
+    document.getElementById("mapView").style.display = "block";
+    document.getElementById("regionNote").textContent = DATA[state.region].note;
+    document.getElementById("countLabel").textContent = (DATA[state.region][state.cat]||[]).length + "件";
+    renderMap();
+  }
+}
+
+document.getElementById("btnList").onclick = ()=>{
+  state.view="list";
+  document.getElementById("btnList").classList.add("active");
+  document.getElementById("btnMap").classList.remove("active");
+  render();
+};
+document.getElementById("btnMap").onclick = ()=>{
+  state.view="map";
+  document.getElementById("btnMap").classList.add("active");
+  document.getElementById("btnList").classList.remove("active");
+  render();
+};
+
+render();
+
+if("serviceWorker" in navigator){
+  window.addEventListener("load", ()=>{
+    navigator.serviceWorker.register("sw.js").catch(()=>{});
+  });
+}
+</script>
+</body>
+</html>
